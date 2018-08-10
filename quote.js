@@ -22,25 +22,24 @@ function getUrl(url, converter) {
   const opts = proxy.host ? Object.assign({}, proxy, {path: url}) : url
   return new Promise((resolve, reject) => {
     http.get(opts, res => {
-      res.on('error', e => console.error(e))
-      if (res.statusCode === 200) {
-        res.on('data', chunk => {
-          const content = chunk.toString('utf8')
-          const $ = cheerio.load(content)
-          try {
-            const data = converter($)
-            if (data) {
-              const wrapped = Object.assign({
-                time: new Date(),
-                fetchDuration: new Date().getTime() - stime
-              }, data)
-              resolve(wrapped)
-            }
-          } catch (e) {
-            reject(e)
+      res.on('data', chunk => {
+        const content = chunk.toString('utf8')
+        const $ = cheerio.load(content)
+        try {
+          const data = converter($)
+          if (data) {
+            const wrapped = Object.assign({
+              time: new Date(),
+              fetchDuration: new Date().getTime() - stime
+            }, data)
+            resolve(wrapped)
           }
-        })
-      } else {
+        } catch (e) {
+          reject(e)
+        }
+      })
+      res.on('error', reject)
+      if (res.statusCode !== 200) {
         reject(res)
       }
     })
