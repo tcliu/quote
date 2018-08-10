@@ -1,0 +1,14 @@
+= Poll real time HSI futures quote
+
+*Setup*
+ 
+ npm install
+
+*Usage*
+
+ q [poll interval in secs]
+
+or
+ 
+ node quote [poll interval in secs]
+ 
