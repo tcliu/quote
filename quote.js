@@ -5,31 +5,44 @@ const moment = require('moment')
 const chalk = require('chalk')
 
 const DEFAULT_POLL_INTERVAL = 5
+const DATETIME_PATTERN = 'YYYY-MM-DD HH:mm:ss.SSS'
 const ETNET_URL = 'http://www.etnet.com.hk/www/eng/futures/index.php'
 const AASTOCKS_URL = 'http://www.aastocks.com/en/stocks/market/bmpfutures.aspx'
 
 const pollInterval = process.argv.length > 2 ? Number(process.argv[2]) : DEFAULT_POLL_INTERVAL
 
+// proxy setting (if applicable)
+const proxy = {
+  host: '',
+  port: undefined
+}
+
 function getUrl(url, converter) {
   const stime = new Date().getTime()
+  const opts = proxy.host ? Object.assign({}, proxy, {path: url}) : url
   return new Promise((resolve, reject) => {
-    http.get(url, res => {
-      res.on('data', chunk => {
-        const content = chunk.toString('utf8')
-        const $ = cheerio.load(content)
-        try {
-          const data = converter($)
-          if (data) {
-            const wrapped = Object.assign({
-              time: new Date(),
-              fetchDuration: new Date().getTime() - stime
-            }, data)
-            resolve(wrapped)
+    http.get(opts, res => {
+      res.on('error', e => console.error(e))
+      if (res.statusCode === 200) {
+        res.on('data', chunk => {
+          const content = chunk.toString('utf8')
+          const $ = cheerio.load(content)
+          try {
+            const data = converter($)
+            if (data) {
+              const wrapped = Object.assign({
+                time: new Date(),
+                fetchDuration: new Date().getTime() - stime
+              }, data)
+              resolve(wrapped)
+            }
+          } catch (e) {
+            reject(e)
           }
-        } catch (e) {
-          reject(e)
-        }
-      })
+        })
+      } else {
+        reject(res)
+      }
     })
   })
 
@@ -64,7 +77,11 @@ function aastocksHsiFutures() {
 }
 
 function printPrice(data) {
-  console.log(chalk.cyan(moment(data.time).format('YYYY-MM-DDTHH:mm:ss.SSS')), chalk.green(data.price))
+  console.log(chalk.cyan(moment(data.time).format(DATETIME_PATTERN)), chalk.green(data.price))
+}
+
+function handleError(res) {
+  console.error(chalk.cyan(moment().format(DATETIME_PATTERN)), 'Status code', res.statusCode)
 }
 
 function once(fn) {
@@ -74,7 +91,7 @@ function once(fn) {
   }
 }
 
-etnetHsiFutures().then(printPrice)
+etnetHsiFutures().then(printPrice, handleError)
 setInterval(() => {
-  etnetHsiFutures().then(printPrice)
+  etnetHsiFutures().then(printPrice, handleError)
 }, pollInterval*1000)
