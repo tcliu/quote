@@ -48,12 +48,14 @@ function getUrl(url, converter) {
 }
 
 function etnetHsiFutures() {
-  once(() => console.log(`Fetching HSI future quote from ${chalk.yellow(ETNET_URL)}`))
+  once(() => console.log(`Fetching HSI future quote from ${chalk.magenta(ETNET_URL)}`))
   return getUrl(ETNET_URL, $ => {
-    const tag = $('.FuturesQuoteContent:nth-child(2) .FuturesQuoteNominal span')
-    if (tag.length == 1) {
+    const fqc = $('.FuturesQuoteContent:nth-child(1)')
+    if (fqc.length == 1) {
       const data = {
-        price: Number(tag.text().replace(/,/g, '')),
+        name: text(fqc.find('.FuturesQuoteName')),
+        price: Number(text(fqc.find('.FuturesQuoteNominal span')).replace(/,/g, '')),
+        change: text(fqc.find('.FuturesQuoteChanged')),
         source: 'etnet'
       }
       return data
@@ -62,7 +64,7 @@ function etnetHsiFutures() {
 }
 
 function aastocksHsiFutures() {
-  once(() => console.log(`Fetching HSI future quote from ${chalk.yellow(AASTOCKS_URL)}`))
+  once(() => console.log(`Fetching HSI future quote from ${chalk.magenta(AASTOCKS_URL)}`))
   return getUrl(AASTOCKS_URL, $ => {
     const tag = $('.font26.bold.cls.ff-arial')
     if (tag.length == 1) {
@@ -76,17 +78,42 @@ function aastocksHsiFutures() {
 }
 
 function printPrice(data) {
-  console.log(chalk.cyan(moment(data.time).format(DATETIME_PATTERN)), chalk.green(data.price))
-}
-
-function handleError(res) {
-  console.error(chalk.cyan(moment().format(DATETIME_PATTERN)), 'Status code', res.statusCode)
+  const dir = getDir(data.change)
+  const dirColour = getDirColour(dir)
+  console.log(chalk.cyan(moment(data.time).format(DATETIME_PATTERN)), chalk.yellow(data.price), chalk[dirColour](data.change))
 }
 
 function once(fn) {
   if (!this.done) {
     fn()
     this.done = true
+  }
+}
+
+function handleError(res) {
+  console.error(chalk.cyan(moment().format(DATETIME_PATTERN)), 'Status code', res.statusCode)
+}
+
+function text(node) {
+  return node.text().trim().replace(/\s+/g, ' ')
+}
+
+function getDir(change) {
+  if (change) {
+    switch (change.charAt(0)) {
+      case '-': return -1
+      case '0': return 0
+      default: return 1
+    }
+  }
+  return 0
+}
+
+function getDirColour(dir) {
+  switch (dir) {
+    case -1: return 'red'
+    case 0: return 'gray'
+    case 1: return 'green'
   }
 }
 
