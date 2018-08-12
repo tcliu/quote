@@ -22,8 +22,10 @@ function getUrl(url, converter) {
   const opts = proxy.host ? Object.assign({}, proxy, {path: url}) : url
   return new Promise((resolve, reject) => {
     http.get(opts, res => {
-      res.on('data', chunk => {
-        const content = chunk.toString('utf8')
+      const chunks = []
+      res.on('data', chunk => chunks.push(chunk))
+      res.on('end', () => {
+        const content = chunks.join('').toString('utf8')
         const $ = cheerio.load(content)
         try {
           const data = converter($)
@@ -50,16 +52,15 @@ function getUrl(url, converter) {
 function etnetHsiFutures() {
   once(() => console.log(`Fetching HSI future quote from ${chalk.magenta(ETNET_URL)}`))
   return getUrl(ETNET_URL, $ => {
-    const fqc = $('.FuturesQuoteContent:nth-child(1)')
-    if (fqc.length == 1) {
-      const data = {
-        name: text(fqc.find('.FuturesQuoteName')),
-        price: Number(text(fqc.find('.FuturesQuoteNominal span')).replace(/,/g, '')),
-        change: text(fqc.find('.FuturesQuoteChanged')),
-        source: 'etnet'
-      }
-      return data
+    const fqcIdx = $('#chart_day').css('display') === 'none' ? 2 : 1
+    const fqc = $(`.FuturesQuoteContent:nth-child(${fqcIdx})`)
+    const data = {
+      name: text(fqc.find('.FuturesQuoteName')),
+      price: Number(text(fqc.find('.FuturesQuoteNominal span')).replace(/,/g, '')),
+      change: text(fqc.find('.FuturesQuoteChanged')),
+      source: 'etnet'
     }
+    return data
   })
 }
 
